@@ -1,19 +1,21 @@
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.graphics import Color, Line, Ellipse
+from kivy.graphics import Color, Line, Ellipse, Rectangle
 from kivy.uix.label import Label
 from kivy.core.window import Window
 from kivy.uix.widget import Widget
+from kivy.core.text import Label as CoreLabel
 import numpy as np
 from math import pi, sin, cos, atan
 
 
 class ModelSolver:
 
-    def __init__(self, theta=0.0):
+    def __init__(self, theta=0.0, fps=1):
         self.theta = np.array([theta, 0.0])
         self.x = np.array([0.0, 0.0])
-        self.u = 0
+        self.u = 0.0
+        self.fps = fps
 
         self.h = 0.001
         self.M = 0.38
@@ -28,21 +30,22 @@ class ModelSolver:
         self.theta = np.array([theta, 0.0])
         self.x = np.array([0.0, 0.0])
 
-    def f_x(self, v, t, u):
-        return np.array([v[1], 1 / (self.M + self.m * sin(t[0]) ** 2) * (
-                self.m * sin(t[0]) * (self.L * t[1] ** 2 - self.g * cos(t[0])) - self.d * v[
-            1] - u)])
+    def f_x(self, pos, t, u):
+        return np.array([pos[1],
+                         (self.m * sin(t[0]) * (self.L * t[1] ** 2 - self.g * cos(t[0])) - self.d * pos[1] - u)
+                         / (self.M + self.m * sin(t[0]) ** 2)])
 
-    def f_theta(self, t, v, u):
-        return np.array([t[1], 1 / (self.L * (self.M + self.m * sin(t[0]) ** 2)) * (
-                (self.m + self.M) * self.g * sin(t[0]) - cos(t[0]) * (
-                self.m * self.L * t[1] ** 2 * sin(t[0]) - self.d * v[1] + u))])
+    def f_theta(self, t, pos, u):
+        return np.array([t[1],
+                         ((self.m + self.M) * self.g * sin(t[0]) - cos(t[0])
+                          * (self.m * self.L * t[1] ** 2 * sin(t[0]) - self.d * pos[1] + u))
+                         / (self.L * (self.M + self.m * sin(t[0]) ** 2))])
 
-    def next(self, fps):
+    def next(self):
         if self.frozen:
             return
         i = 0
-        while i < fps:
+        while i < self.fps:
             x = self.x
             theta = self.theta
             self.x = x + self.h * self.f_x(x, theta, self.u)
@@ -63,33 +66,36 @@ class SystemWidget(Widget):
 
     def __init__(self, fps, **kwargs):
         super().__init__(**kwargs)
-        self.fps = fps
         self.length = 150
-        self.model_solver = ModelSolver(theta=1 / 15 * pi)
+        self.model_solver = ModelSolver(theta=1 / 15 * pi, fps=fps)
 
     def draw(self):
+        x = Window.size[0] // 2
+        y = Window.size[1] // 2
         u = self.model_solver.u
         theta = self.model_solver.theta[0] - (pi / 2)
         pos = np.array([cos(theta), sin(theta)]) * self.length
 
         with self.canvas:
             self.canvas.clear()
-
-            center_x = Window.size[0] // 2 + u
-            center_y = Window.size[1] // 2
+            Color(1, 1, 1, 0.5)
+            Line(points=[x - self.length * 10, y, x + self.length * 10, y], width=1)
 
             Color(1, 1, 1, 1)
-            Line(points=[center_x, center_y, center_x + pos[0], center_y + pos[1]], width=1)
+            Line(points=[x + u + pos[0], y + 30, x + u + pos[0], y + 40], width=1)
+            for i in range(-10, 11):
+                xp = x + self.model_solver.x[0] * 100 + i * 100
+                Line(points=[xp, y + 30, xp, y + 40], width=1)
+                core_l = CoreLabel(text=str(float(i)))
+                core_l.refresh()
+                Rectangle(texture=core_l.texture, pos=(xp - core_l.size[0] // 2, y + 40), size=core_l.size)
 
-            size = 40
-            Line(rectangle=[center_x - size // 2, center_y - size // 4, size, size // 2], width=1)
-
-            size = 15
-            dif = (size + 1) // 2
-            Ellipse(pos=(center_x - dif + pos[0], center_y - dif + pos[1]), size=(size, size))
+            Line(rectangle=[x + u - 20, y - 10, 40, 20], width=1)
+            Line(points=[x + u, y, x + u + pos[0], y + pos[1]], width=1)
+            Ellipse(pos=(x + u - 7 + pos[0], y - 7 + pos[1]), size=(13, 13))
 
             text = "θ = %+.*f" % (4, self.model_solver.theta[0]) + \
-                   "\nx = %+.*f" % (4, self.model_solver.x[0]) + \
+                   "\nx = %+.*f" % (4, -self.model_solver.x[0]) + \
                    "\nu = %+.*f" % (4, self.model_solver.u)
             Label(text=text)
 
@@ -111,7 +117,7 @@ class SystemWidget(Widget):
             self.model_solver.u = x / 100
 
     def update(self):
-        self.model_solver.next(self.fps)
+        self.model_solver.next()
         self.draw()
 
 
