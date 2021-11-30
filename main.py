@@ -72,7 +72,7 @@ class SystemWidget(Widget):
     def draw(self):
         x = Window.size[0] // 2
         y = Window.size[1] // 2
-        u = self.model_solver.u
+        u = self.model_solver.u * 100
         theta = self.model_solver.theta[0] - (pi / 2)
         pos = np.array([cos(theta), sin(theta)]) * self.length
 
@@ -114,7 +114,7 @@ class SystemWidget(Widget):
             y = self.length
             self.model_solver.reset(atan(x / y))
         else:
-            self.model_solver.u = x / 100
+            self.model_solver.u = x / 200
 
     def update(self):
         self.model_solver.next()
