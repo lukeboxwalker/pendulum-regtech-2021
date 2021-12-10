@@ -72,7 +72,6 @@ class SystemWidget(Widget):
     def draw(self):
         x = Window.size[0] // 2
         y = Window.size[1] // 2
-        u = self.model_solver.u
         theta = self.model_solver.theta[0] - (pi / 2)
         pos = np.array([cos(theta), sin(theta)]) * self.length
 
@@ -82,7 +81,6 @@ class SystemWidget(Widget):
             Line(points=[x - self.length * 10, y, x + self.length * 10, y], width=1)
 
             Color(1, 1, 1, 1)
-            Line(points=[x + u + pos[0], y + 30, x + u + pos[0], y + 40], width=1)
             for i in range(-10, 11):
                 xp = x + self.model_solver.x[0] * 100 + i * 100
                 Line(points=[xp, y + 30, xp, y + 40], width=1)
@@ -90,9 +88,14 @@ class SystemWidget(Widget):
                 core_l.refresh()
                 Rectangle(texture=core_l.texture, pos=(xp - core_l.size[0] // 2, y + 40), size=core_l.size)
 
-            Line(rectangle=[x + u - 20, y - 10, 40, 20], width=1)
-            Line(points=[x + u, y, x + u + pos[0], y + pos[1]], width=1)
-            Ellipse(pos=(x + u - 7 + pos[0], y - 7 + pos[1]), size=(13, 13))
+            Line(rectangle=[x - 20, y - 10, 40, 20], width=1)
+            Line(points=[x, y, x + pos[0], y + pos[1]], width=1)
+            Ellipse(pos=(x - 7 + pos[0], y - 7 + pos[1]), size=(13, 13))
+
+            x, y = x + x // 2, y + y // 2
+            Line(points=[x + 20, y + 20, x + 30, y + 30, x + 20, y + 40], width=1)
+            x, y = x - Window.size[0] // 2, y
+            Line(points=[x - 20, y + 20, x - 30, y + 30, x - 20, y + 40], width=1)
 
             text = "θ = %+.*f" % (4, self.model_solver.theta[0]) + \
                    "\nx = %+.*f" % (4, -self.model_solver.x[0]) + \
@@ -103,18 +106,19 @@ class SystemWidget(Widget):
         if touch.y < Window.size[1] // 2:
             self.model_solver.frozen = True
             self.on_touch_move(touch)
+        else:
+            x = touch.x - Window.size[0] // 2
+            self.model_solver.u = x / 100
 
     def on_touch_up(self, touch):
         self.model_solver.frozen = False
         self.model_solver.u = 0
 
     def on_touch_move(self, touch):
-        x = touch.x - Window.size[0] // 2
         if touch.y < Window.size[1] // 2:
+            x = touch.x - Window.size[0] // 2
             y = self.length
             self.model_solver.reset(atan(x / y))
-        else:
-            self.model_solver.u = x / 100
 
     def update(self):
         self.model_solver.next()
