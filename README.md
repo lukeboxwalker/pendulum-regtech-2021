@@ -1,3 +1,3 @@
-# Kreative Anwendung Pendel
+# Kreative Anwendung Pendel (usage)
 
 ![](pendel.png)
