@@ -99,7 +99,7 @@ class SystemWidget(Widget):
             Line(points=[x - 20, y + 20, x - 30, y + 30, x - 20, y + 40], width=1)
 
             text = "θ = %+.*f" % (4, self.model_solver.theta[0]) + \
-                   "\nx = %+.*f" % (4, -self.model_solver.x[0]) + \
+                   "\nx = %+.*f" % (4, self.model_solver.x[0]) + \
                    "\nu = %+.*f" % (4, self.model_solver.u)
             Label(text=text)
 
