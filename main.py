@@ -3,6 +3,7 @@ from kivy.clock import Clock
 from kivy.graphics import Color, Line, Ellipse, Rectangle
 from kivy.uix.label import Label
 from kivy.core.window import Window
+from kivy.uix.switch import Switch
 from kivy.uix.widget import Widget
 from kivy.core.text import Label as CoreLabel
 
@@ -25,7 +26,11 @@ class ModelSolver:
         self.L = 0.33
         self.d = 1
 
+        self.k_r = -5.6
+        self.t_v = 1/1.695736
+
         self.frozen = False
+        self.control = False
 
     def reset(self, theta):
         self.theta = np.array([theta, 0.0])
@@ -42,16 +47,24 @@ class ModelSolver:
                           * (self.m * self.L * t[1] ** 2 * sin(t[0]) - self.d * pos[1] + u))
                          / (self.L * (self.M + self.m * sin(t[0]) ** 2))])
 
+    def p_d(self, s):
+        return self.k_r * (-s[0] - self.t_v * s[1])
+
     def next(self):
         if self.frozen:
             return
         i = 0
         while i < self.fps:
+            if self.control:
+                self.u = self.p_d(self.theta)
             x = self.x
             theta = self.theta
             self.x = x + self.h * self.f_x(x, theta, self.u)
             self.theta = theta + self.h * self.f_theta(theta, x, self.u)
             i = i + self.h
+
+    def set_controller(self, state):
+        self.control = state
 
 
 class Simulation(App):
@@ -68,7 +81,12 @@ class SystemWidget(Widget):
     def __init__(self, fps, **kwargs):
         super().__init__(**kwargs)
         self.length = 150
-        self.model_solver = ModelSolver(theta=1 / 15 * pi, fps=fps)
+        self.model_solver = ModelSolver(theta=0, fps=fps)
+        self.switch = Switch(active=False)
+        self.switch.bind(active=self.switch_callback)
+
+    def switch_callback(self, _, state):
+        self.model_solver.set_controller(state)
 
     def draw(self):
         x = Window.size[0] // 2
@@ -78,6 +96,9 @@ class SystemWidget(Widget):
 
         with self.canvas:
             self.canvas.clear()
+            self.switch.parent = None
+            self.switch.pos = (Window.size[0] - 100, 0)
+            self.add_widget(self.switch, canvas=self.canvas)
             Color(1, 1, 1, 0.5)
             Line(points=[x - self.length * 10, y, x + self.length * 10, y], width=1)
 
@@ -102,8 +123,11 @@ class SystemWidget(Widget):
                    "\nx = %+.*f" % (4, self.model_solver.x[0]) + \
                    "\nu = %+.*f" % (4, self.model_solver.u)
             Label(text=text)
+            Label(text="Regler", pos=(Window.size[0] - 100, 25))
 
     def on_touch_down(self, touch):
+        if self.switch.on_touch_down(touch):
+            return
         if touch.y < Window.size[1] // 2:
             self.model_solver.frozen = True
             self.on_touch_move(touch)
